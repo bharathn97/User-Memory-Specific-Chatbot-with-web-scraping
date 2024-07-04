@@ -1,4 +1,5 @@
 # Chat with any website through web scraping
 
-Firecrawl used as web scraping tool  
-HuggingFaceH4/zephyr-7b-beta LLM used as the base for chatbot
+p><b><span style="font-size: 1.5em;">Firecrawl used as web scraping tool</span></b></p>
+<p><b><span style="font-size: 1.5em;">HuggingFaceH4/zephyr-7b-beta LLM used as the base for chatbot</span></b></p>
+<p><b><span style="font-size: 1.5em;">MongoDB Cloud used for storing user's chat history</span></b></p>
