@@ -1,0 +1,7 @@
+torch
+peft
+transformers
+langchain
+chromadb
+gradio
+gradio_client
