@@ -1,6 +1,0 @@
-torch
-peft
-transformers
-langchain
-chromadb
-gradio
