@@ -11,7 +11,7 @@ from firecrawl import FirecrawlApp
 from gradio_client import Client
 from streamlit_option_menu import option_menu
 
-from database import (ChatHistory, get_chat_history, get_user, register_user,
+from database import (get_chat_history, get_user, register_user,
                       save_chat_history)
 
 load_dotenv()
@@ -24,14 +24,14 @@ chat = model.start_chat(history=[])
 # Initialize the Hugging Face API client
 hf_client = Client("bharathn97/hi")
 
-def get_huggingface_response(question,user):
+def get_huggingface_response(question, username):
     result = hf_client.predict(
         message=question,
         system_message=(
-            "You are a friendly Chatbot and you also have the entire chat history stored "
-            "and the chat history is the conversation of you with the user which is the context. "
+            f"You are a friendly Chatbot and you also have the entire chat history remembered "
+            f"and the chat history is the conversation of you with the user {username} which is the context and try to keep mentioning the user. "
             "Whenever asked anything related to previous chat history don't tell that you don't have memory of previous chat history "
-            "you have the context and you can answer. The context is your previous conversation history. "
+            "you have the context and you can answer. "
             "Be precise in your answers and grammatically correct. If you find the answer in the context then don't mention that you found it in the context provided, "
             "just professionally answer generally. In case you are sure that such relevant conversation has never happened the answer then you say that such conversation has never occurred. "
             "In all other instances, you provide an answer to the best of your capability."
@@ -39,8 +39,7 @@ def get_huggingface_response(question,user):
         max_tokens=512,
         temperature=0.7,
         top_p=0.95,
-        api_name="/chat",
-        username=user
+        api_name="/chat"
     )
     return result
 
@@ -59,7 +58,7 @@ def save_raw_data(raw_data, timestamp, output_folder='output'):
         f.write(raw_data)
     return raw_output_path
 
-def format_data(data, fields=None):
+def format_data(data):
     GOOGLE_API_KEY = os.getenv('GEMINI_API_KEY')
     genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -94,9 +93,9 @@ if not st.session_state['logged_in']:
         if user:
             st.session_state['logged_in'] = True
             st.session_state['user_id'] = user.id
-            st.session_state['username_input'] = user.username 
+            st.session_state['username_input'] = user.get('username') 
             chat_history = get_chat_history(user.id)
-            st.session_state['chat_history'] = [(ch.role, ch.message) for ch in chat_history]
+            st.session_state['chat_history'] = [(ch['role'], ch['message']) for ch in chat_history]
         else:
             st.error("Invalid username or password")
 
@@ -124,12 +123,11 @@ else:
         with col1_1:
             if st.button("Ask Question"):
                 if input:
-                    response = get_huggingface_response(input,st.session_state['username_input'])
-                    complete_response = response
-                    st.session_state['current_session_history'].append(("Bot", complete_response))
-                    save_chat_history(st.session_state['user_id'], "Bot", complete_response)
-                    st.session_state['current_session_history'].append((st.session_state['username_input'], input))
-                    save_chat_history(st.session_state['user_id'], st.session_state['username_input'], input)
+                    response = get_huggingface_response(input, st.session_state['username_input'])
+                    st.session_state['current_session_history'].append(("assistant", response))
+                    save_chat_history(st.session_state['user_id'], "assistant", response)
+                    st.session_state['current_session_history'].append(("user", input))
+                    save_chat_history(st.session_state['user_id'], "user", input)
 
         with col1_2:
             if st.button("Scrape URL"):
@@ -139,26 +137,26 @@ else:
                         raw_data = scrape_data(url)
                         save_raw_data(raw_data, timestamp)
                         formatted_data = format_data(raw_data)
-                        st.session_state['current_session_history'].append(("Bot", formatted_data))
-                        save_chat_history(st.session_state['user_id'], "Bot", formatted_data)
-                        st.session_state['current_session_history'].append((st.session_state['username_input'], url))
-                        save_chat_history(st.session_state['user_id'], st.session_state['username_input'], url)
+                        st.session_state['current_session_history'].append(("assistant", formatted_data))
+                        save_chat_history(st.session_state['user_id'], "assistant", formatted_data)
+                        st.session_state['current_session_history'].append(("user", url))
+                        save_chat_history(st.session_state['user_id'], "user", url)
                     except Exception as e:
-                        st.session_state['current_session_history'].append(("Bot", f"An error occurred: {e}"))
-                        save_chat_history(st.session_state['user_id'], "Bot", f"An error occurred: {e}")
+                        st.session_state['current_session_history'].append(("assistant", f"An error occurred: {e}"))
+                        save_chat_history(st.session_state['user_id'], "assistant", f"An error occurred: {e}")
 
     st.subheader("Chat History")
     if st.session_state['current_session_history']:
         st.markdown("### Current Session")
         for role, text in reversed(st.session_state['current_session_history']):
-            if role == "Bot":
+            if role == "assistant":
                 st.markdown(f"<h4 style='color: green;'>{role}:</h4> {text}", unsafe_allow_html=True)
             else:
                 st.markdown(f"<h4 style='color: red;'>{role}:</h4> {text}", unsafe_allow_html=True)
     if st.session_state['chat_history']:
         st.markdown("### Previous Sessions")
         for role, text in reversed(st.session_state['chat_history']):
-            if role == "Bot":
+            if role == "assistant":
                 st.markdown(f"<h4 style='color: green;'>{role}:</h4> {text}", unsafe_allow_html=True)
             else:
                 st.markdown(f"<h4 style='color: red;'>{role}:</h4> {text}", unsafe_allow_html=True)
